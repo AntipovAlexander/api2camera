@@ -42,13 +42,17 @@ class CameraFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         // set listener about surface availability
-        texture.surfaceTextureListener = surfaceTextureListener
+        if (!texture.isAvailable)
+            texture.surfaceTextureListener = surfaceTextureListener
+        else
+            openCamera()
     }
 
     override fun onPause() {
         super.onPause()
         // remove listener listener about surface availability
         texture.surfaceTextureListener = null
+        cameraDevice.close()
     }
 
     override fun onDestroyView() {
@@ -80,7 +84,7 @@ class CameraFragment : Fragment() {
          * Invoked when a TextureView's SurfaceTexture is ready for use.
          */
         override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-            openCamera(width, height)
+            openCamera()
         }
     }
 
@@ -159,15 +163,13 @@ class CameraFragment : Fragment() {
     }
 
     @SuppressLint("MissingPermission")
-    private fun openCamera(width: Int, height: Int) {
+    private fun openCamera() {
         // check permissions
         val permission = ContextCompat.checkSelfPermission(activity!!, Manifest.permission.CAMERA)
         if (permission != PackageManager.PERMISSION_GRANTED) {
             activity!!.finish()
             return
         }
-//        setUpCameraOutputs(width, height)
-//        configureTransform(width, height)
         try {
             // get camera possible resolutions
             val manager = activity!!.getSystemService(Context.CAMERA_SERVICE) as CameraManager
