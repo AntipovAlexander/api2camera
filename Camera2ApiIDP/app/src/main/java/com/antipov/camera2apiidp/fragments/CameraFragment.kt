@@ -6,6 +6,7 @@ import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
@@ -15,6 +16,8 @@ import android.os.Handler
 import android.util.Log
 import android.util.Size
 import android.view.*
+import android.view.animation.AlphaAnimation
+import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.ImageSaver
@@ -25,13 +28,17 @@ import java.io.File
 
 class CameraFragment : Fragment() {
 
-    private lateinit var file: File
     private lateinit var cameraCaptureSession: CameraCaptureSession
     private lateinit var captureRequestBuilder: CaptureRequest.Builder
     private lateinit var cameraDevice: CameraDevice
     private lateinit var imageDimension: Size
     private lateinit var orientationChangeCallback: OrientationChangeCallback
     private lateinit var imageReader: ImageReader
+    private val captureSuccessAnimation = AlphaAnimation(1f, 0f).apply {
+        duration = 500
+        interpolator = LinearInterpolator()
+        fillAfter = true
+    }
 
     private var cameraId: String = "0"
 
@@ -57,7 +64,10 @@ class CameraFragment : Fragment() {
                         request: CaptureRequest,
                         result: TotalCaptureResult
                     ) {
-                        request.toString()
+                        with(blinkView) {
+                            alpha = 1f
+                            startAnimation(captureSuccessAnimation)
+                        }
                     }
                 },
                 null
@@ -80,11 +90,6 @@ class CameraFragment : Fragment() {
 //                CaptureRequest.CONTROL_AF_MODE_AUTO
 //            )
 //        }
-    }
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        file = File(activity?.filesDir, "myphoto.jpg")
     }
 
     override fun onResume() {
@@ -110,7 +115,10 @@ class CameraFragment : Fragment() {
 
     private var imageAvailableListener: ImageReader.OnImageAvailableListener =
         ImageReader.OnImageAvailableListener {
-            Handler().post(ImageSaver(it.acquireNextImage(), file))
+            val file = File(activity?.filesDir, "${System.currentTimeMillis()}.jpg")
+            Handler().post(ImageSaver(it.acquireNextImage(), file) { filePath ->
+                imagePreview.setImageBitmap(BitmapFactory.decodeFile(filePath))
+            })
         }
 
     private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {

@@ -18,7 +18,11 @@ internal class ImageSaver(
     /**
      * The file we save the image into.
      */
-    private val file: File
+    private val file: File,
+    /**
+     * Success callback
+     */
+    private val callback: (String) -> Unit
 ) : Runnable {
 
     override fun run() {
@@ -30,6 +34,7 @@ internal class ImageSaver(
             output = FileOutputStream(file).apply {
                 write(bytes)
             }
+            callback(file.absolutePath)
         } catch (e: IOException) {
             Log.e(TAG, e.toString())
         } finally {
