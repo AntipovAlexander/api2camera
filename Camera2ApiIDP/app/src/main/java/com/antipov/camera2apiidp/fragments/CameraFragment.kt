@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
@@ -22,6 +23,7 @@ import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.ImageSaver
+import com.antipov.camera2apiidp.PhotoViewerActivity
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
 import kotlinx.android.synthetic.main.fragment_camera.*
 import java.io.File
@@ -70,7 +72,9 @@ class CameraFragment : Fragment() {
                 ?.maxBy { it.lastModified() }
                 ?.let { imagePreview.setImageBitmap(BitmapFactory.decodeFile(it.absolutePath)) }
         }
-
+        imagePreview.setOnClickListener {
+            startActivity(Intent(activity, PhotoViewerActivity::class.java))
+        }
         orientationChangeCallback = OrientationChangeCallback(activity!!)
         orientationChangeCallback.enable()
         takePhotoBtn.setOnClickListener {
@@ -267,6 +271,7 @@ class CameraFragment : Fragment() {
     }
 
     @SuppressLint("MissingPermission")
+
     private fun openCamera() {
         // check permissions
         val permission = ContextCompat.checkSelfPermission(activity!!, Manifest.permission.CAMERA)
