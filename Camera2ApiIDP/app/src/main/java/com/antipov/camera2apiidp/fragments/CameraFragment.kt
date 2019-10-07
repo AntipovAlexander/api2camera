@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import android.util.Size
+import android.util.SparseIntArray
 import android.view.*
 import android.view.animation.AlphaAnimation
 import android.view.animation.LinearInterpolator
@@ -34,6 +35,17 @@ class CameraFragment : Fragment() {
     private lateinit var imageDimension: Size
     private lateinit var orientationChangeCallback: OrientationChangeCallback
     private lateinit var imageReader: ImageReader
+
+    private var sensorOrientation: Int = 0
+    private val ORIENTATIONS = SparseIntArray()
+
+    init {
+        ORIENTATIONS.append(Surface.ROTATION_0, 90)
+        ORIENTATIONS.append(Surface.ROTATION_90, 0)
+        ORIENTATIONS.append(Surface.ROTATION_180, 270)
+        ORIENTATIONS.append(Surface.ROTATION_270, 180)
+    }
+
     private val captureSuccessAnimation = AlphaAnimation(1f, 0f).apply {
         duration = 500
         interpolator = LinearInterpolator()
@@ -63,6 +75,16 @@ class CameraFragment : Fragment() {
         orientationChangeCallback.enable()
         takePhotoBtn.setOnClickListener {
             val builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+            val rotation = activity!!.windowManager.defaultDisplay.rotation
+            // Sensor orientation is 90 for most devices, or 270 for some devices (eg. Nexus 5X)
+            // We have to take that into account and rotate JPEG properly.
+            // For devices with orientation of 90, we return our mapping from ORIENTATIONS.
+            // For devices with orientation of 270, we need to rotate the JPEG 180 degrees.
+            builder.set(
+                CaptureRequest.JPEG_ORIENTATION,
+                (ORIENTATIONS.get(rotation) + sensorOrientation + 270) % 360
+            )
+
             enableDefaultModes(builder)
             builder.addTarget(imageReader.surface)
             cameraCaptureSession.capture(
@@ -260,7 +282,7 @@ class CameraFragment : Fragment() {
             // this method returns array of Sizes, compatible with class to use as an output
             // just pick first one. There you can choose appropriate for you size
             imageDimension = map.getOutputSizes(SurfaceTexture::class.java)[0]
-
+            sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
             // We fit the aspect ratio of TextureView to the size of preview we picked.
             if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 texture.setAspectRatio(imageDimension.width, imageDimension.height)
