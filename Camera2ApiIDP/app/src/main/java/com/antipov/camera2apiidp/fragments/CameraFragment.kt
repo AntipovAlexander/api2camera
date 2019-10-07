@@ -6,25 +6,33 @@ import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
+import android.media.ImageReader
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import android.util.Size
 import android.view.*
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.antipov.camera2apiidp.ImageSaver
 import com.antipov.camera2apiidp.R
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
 import kotlinx.android.synthetic.main.fragment_camera.*
+import java.io.File
 
 class CameraFragment : Fragment() {
 
-    private lateinit var cameraCaptureSessions: CameraCaptureSession
+    private lateinit var file: File
+    private lateinit var cameraCaptureSession: CameraCaptureSession
     private lateinit var captureRequestBuilder: CaptureRequest.Builder
     private lateinit var cameraDevice: CameraDevice
     private lateinit var imageDimension: Size
-    private lateinit var orientetionChangeCallback: OrientationChangeCallback
+    private lateinit var orientationChangeCallback: OrientationChangeCallback
+    private lateinit var imageReader: ImageReader
+
     private var cameraId: String = "0"
 
     override fun onCreateView(
@@ -35,8 +43,48 @@ class CameraFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        orientetionChangeCallback = OrientationChangeCallback(activity!!)
-        orientetionChangeCallback.enable()
+        orientationChangeCallback = OrientationChangeCallback(activity!!)
+        orientationChangeCallback.enable()
+        takePhotoBtn.setOnClickListener {
+            val builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+            enableDefaultModes(builder)
+            builder.addTarget(imageReader.surface)
+            cameraCaptureSession.capture(
+                builder.build(),
+                object : CameraCaptureSession.CaptureCallback() {
+                    override fun onCaptureCompleted(
+                        session: CameraCaptureSession,
+                        request: CaptureRequest,
+                        result: TotalCaptureResult
+                    ) {
+                        request.toString()
+                    }
+                },
+                null
+            )
+        }
+    }
+
+    private fun enableDefaultModes(builder: CaptureRequest.Builder?) {
+        if (builder == null) return
+        // Auto focus should be continuous for camera preview.
+        builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+//        if (characteristics.isContinuousAutoFocusSupported()) {
+//            builder.set(
+//                CaptureRequest.CONTROL_AF_MODE,
+//                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+//            )
+//        } else {
+//            builder.set(
+//                CaptureRequest.CONTROL_AF_MODE,
+//                CaptureRequest.CONTROL_AF_MODE_AUTO
+//            )
+//        }
+    }
+
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        super.onActivityCreated(savedInstanceState)
+        file = File(activity?.filesDir, "myphoto.jpg")
     }
 
     override fun onResume() {
@@ -57,8 +105,13 @@ class CameraFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        orientetionChangeCallback.disable()
+        orientationChangeCallback.disable()
     }
+
+    private var imageAvailableListener: ImageReader.OnImageAvailableListener =
+        ImageReader.OnImageAvailableListener {
+            Handler().post(ImageSaver(it.acquireNextImage(), file))
+        }
 
     private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {
 
@@ -98,6 +151,7 @@ class CameraFragment : Fragment() {
         override fun onOpened(camera: CameraDevice) {
             // save to close it later
             cameraDevice = camera
+            createImageReader()
             // create CaptureSession
             createCameraPreview()
         }
@@ -126,24 +180,35 @@ class CameraFragment : Fragment() {
         }
     }
 
+    private fun createImageReader() {
+        // configure image reader with selected size
+        imageReader = ImageReader.newInstance(
+            imageDimension.width,
+            imageDimension.height,
+            ImageFormat.JPEG,
+            1
+        )
+        imageReader.setOnImageAvailableListener(imageAvailableListener, null)
+    }
+
     private fun createCameraPreview() {
         // get surface texture for output
         val surfaceTexture = texture.surfaceTexture
         // configure it with selected size
         surfaceTexture.setDefaultBufferSize(imageDimension.width, imageDimension.height)
-        // create surface
+        // create preview surface
         val surface = Surface(surfaceTexture)
         // make request for preview
         captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-        // add surface as target
+        // add preview surface as target
         captureRequestBuilder.addTarget(surface)
         cameraDevice.createCaptureSession(
-            listOf(surface),
+            listOf(surface, imageReader.surface),
             object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
                     // When the session is ready, we start displaying the preview.
-                    cameraCaptureSessions = cameraCaptureSession
-                    // and set this reques
+                    this@CameraFragment.cameraCaptureSession = cameraCaptureSession
+                    // and set this request repeatable
                     updatePreview()
                 }
 
@@ -159,7 +224,7 @@ class CameraFragment : Fragment() {
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
         //With this method, the camera device will continually capture images, cycling through the
         // settings in the provided list of CaptureRequests, at the maximum rate possible.
-        cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, null)
+        cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null)
     }
 
     @SuppressLint("MissingPermission")
