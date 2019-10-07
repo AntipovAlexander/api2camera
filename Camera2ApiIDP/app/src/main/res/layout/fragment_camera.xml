@@ -35,7 +35,7 @@
             android:layout_alignTop="@+id/takePhotoBtn"
             android:layout_alignBottom="@+id/takePhotoBtn"
             android:padding="8dp"
-            android:src="@drawable/ic_launcher_background"
+            android:src="@drawable/ic_block"
             app:civ_border_color="@android:color/white"
             app:civ_border_width="2dp" />
 

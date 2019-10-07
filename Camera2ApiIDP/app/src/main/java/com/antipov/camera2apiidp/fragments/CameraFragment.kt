@@ -21,10 +21,10 @@ import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.ImageSaver
-import com.antipov.camera2apiidp.R
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
 import kotlinx.android.synthetic.main.fragment_camera.*
 import java.io.File
+
 
 class CameraFragment : Fragment() {
 
@@ -46,10 +46,19 @@ class CameraFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? = View.inflate(inflater.context, R.layout.fragment_camera, null)
+    ): View? =
+        View.inflate(inflater.context, com.antipov.camera2apiidp.R.layout.fragment_camera, null)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val folder = File(activity?.filesDir, "")
+        if (folder.exists()) {
+            folder
+                .listFiles { _, name -> name.endsWith(".jpg") }
+                ?.maxBy { it.lastModified() }
+                ?.let { imagePreview.setImageBitmap(BitmapFactory.decodeFile(it.absolutePath)) }
+        }
+
         orientationChangeCallback = OrientationChangeCallback(activity!!)
         orientationChangeCallback.enable()
         takePhotoBtn.setOnClickListener {
