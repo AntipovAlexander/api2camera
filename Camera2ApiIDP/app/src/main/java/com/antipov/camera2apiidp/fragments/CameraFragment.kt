@@ -18,12 +18,9 @@ import android.util.Log
 import android.util.Size
 import android.util.SparseIntArray
 import android.view.*
-import android.view.animation.AlphaAnimation
-import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.antipov.camera2apiidp.ImageSaver
-import com.antipov.camera2apiidp.PhotoViewerActivity
+import com.antipov.camera2apiidp.*
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
 import kotlinx.android.synthetic.main.fragment_camera.*
 import java.io.File
@@ -42,17 +39,13 @@ class CameraFragment : Fragment() {
     private val ORIENTATIONS = SparseIntArray()
 
     init {
-        ORIENTATIONS.append(Surface.ROTATION_0, 90)
-        ORIENTATIONS.append(Surface.ROTATION_90, 0)
-        ORIENTATIONS.append(Surface.ROTATION_180, 270)
-        ORIENTATIONS.append(Surface.ROTATION_270, 180)
+        ORIENTATIONS.append(Rotation.ROTATION_O.ordinal, 90)
+        ORIENTATIONS.append(Rotation.ROTATION_90.ordinal, 0)
+        ORIENTATIONS.append(Rotation.ROTATION_180.ordinal, 270)
+        ORIENTATIONS.append(Rotation.ROTATION_270.ordinal, 180)
     }
 
-    private val captureSuccessAnimation = AlphaAnimation(1f, 0f).apply {
-        duration = 500
-        interpolator = LinearInterpolator()
-        fillAfter = true
-    }
+    private val captureSuccessAnimation = BlinkAnimation()
 
     private var cameraId: String = "0"
 
@@ -60,8 +53,7 @@ class CameraFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? =
-        View.inflate(inflater.context, com.antipov.camera2apiidp.R.layout.fragment_camera, null)
+    ): View? = View.inflate(inflater.context, R.layout.fragment_camera, null)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -89,7 +81,6 @@ class CameraFragment : Fragment() {
                 (ORIENTATIONS.get(rotation) + sensorOrientation + 270) % 360
             )
 
-            enableDefaultModes(builder)
             builder.addTarget(imageReader.surface)
             cameraCaptureSession.capture(
                 builder.build(),
@@ -108,23 +99,6 @@ class CameraFragment : Fragment() {
                 null
             )
         }
-    }
-
-    private fun enableDefaultModes(builder: CaptureRequest.Builder?) {
-        if (builder == null) return
-        // Auto focus should be continuous for camera preview.
-        builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
-//        if (characteristics.isContinuousAutoFocusSupported()) {
-//            builder.set(
-//                CaptureRequest.CONTROL_AF_MODE,
-//                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
-//            )
-//        } else {
-//            builder.set(
-//                CaptureRequest.CONTROL_AF_MODE,
-//                CaptureRequest.CONTROL_AF_MODE_AUTO
-//            )
-//        }
     }
 
     override fun onResume() {
@@ -205,6 +179,7 @@ class CameraFragment : Fragment() {
         override fun onDisconnected(camera: CameraDevice) {
             cameraDevice = camera
             cameraDevice.close()
+            closeImageReader()
         }
 
         /**
@@ -213,6 +188,7 @@ class CameraFragment : Fragment() {
         override fun onError(camera: CameraDevice, p1: Int) {
             cameraDevice = camera
             cameraDevice.close()
+            closeImageReader()
         }
 
         /**
@@ -220,7 +196,12 @@ class CameraFragment : Fragment() {
          */
         override fun onClosed(camera: CameraDevice) {
             cameraDevice = camera
+            closeImageReader()
         }
+    }
+
+    private fun closeImageReader() {
+        imageReader.setOnImageAvailableListener(null, null)
     }
 
     private fun createImageReader() {
@@ -271,7 +252,6 @@ class CameraFragment : Fragment() {
     }
 
     @SuppressLint("MissingPermission")
-
     private fun openCamera() {
         // check permissions
         val permission = ContextCompat.checkSelfPermission(activity!!, Manifest.permission.CAMERA)

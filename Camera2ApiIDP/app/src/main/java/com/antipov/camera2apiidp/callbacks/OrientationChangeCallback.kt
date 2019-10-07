@@ -6,6 +6,7 @@ import android.view.OrientationEventListener
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.antipov.camera2apiidp.R
+import com.antipov.camera2apiidp.Rotation
 
 class OrientationChangeCallback(private val context: Context) : OrientationEventListener(context) {
 
@@ -15,30 +16,25 @@ class OrientationChangeCallback(private val context: Context) : OrientationEvent
     private val imagePreview
         get() = (context as? AppCompatActivity)?.findViewById<View>(R.id.imagePreview)
 
-
-    private val ROTATION_O = 0
-    private val ROTATION_90 = 90
-    private val ROTATION_180 = 180
-    private val ROTATION_270 = 270
-    private var rotation = ROTATION_O
+    private var rotation = Rotation.ROTATION_O.angle
 
     override fun onOrientationChanged(orientation: Int) {
 
         when {
-            (orientation >= 340 || orientation < 20) and (rotation != ROTATION_O) -> {
-                val direction = determineDirection(rotation, ROTATION_180)
-                rotateViewsTo(ROTATION_O * direction, takePhotoBtn, imagePreview)
-                rotation = ROTATION_O
+            (orientation >= 340 || orientation < 20) and (rotation != Rotation.ROTATION_O.angle) -> {
+                val direction = determineDirection(rotation, Rotation.ROTATION_180.angle)
+                rotateViewsTo(Rotation.ROTATION_O.angle * direction, takePhotoBtn, imagePreview)
+                rotation = Rotation.ROTATION_O.angle
             }
-            (orientation in 70..109) and (rotation != ROTATION_90) -> {
-                val direction = determineDirection(rotation, ROTATION_90)
-                rotateViewsTo(-ROTATION_90 * direction, takePhotoBtn, imagePreview)
-                rotation = ROTATION_90
+            (orientation in 70..109) and (rotation != Rotation.ROTATION_90.angle) -> {
+                val direction = determineDirection(rotation, Rotation.ROTATION_90.angle)
+                rotateViewsTo(-Rotation.ROTATION_90.angle * direction, takePhotoBtn, imagePreview)
+                rotation = Rotation.ROTATION_90.angle
             }
-            (orientation in 250..289) and (rotation != ROTATION_270) -> {
-                val direction = determineDirection(rotation, ROTATION_270)
-                rotateViewsTo(ROTATION_90 * direction, takePhotoBtn, imagePreview)
-                rotation = ROTATION_270
+            (orientation in 250..289) and (rotation != Rotation.ROTATION_270.angle) -> {
+                val direction = determineDirection(rotation, Rotation.ROTATION_270.angle)
+                rotateViewsTo(Rotation.ROTATION_90.angle * direction, takePhotoBtn, imagePreview)
+                rotation = Rotation.ROTATION_270.angle
             }
         }
     }
