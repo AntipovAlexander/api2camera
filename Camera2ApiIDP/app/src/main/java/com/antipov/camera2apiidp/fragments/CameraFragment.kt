@@ -16,11 +16,16 @@ import android.os.Handler
 import android.util.Log
 import android.util.Size
 import android.util.SparseIntArray
-import android.view.*
+import android.view.LayoutInflater
+import android.view.Surface
+import android.view.View
+import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.*
+import com.antipov.camera2apiidp.callbacks.DeviceStateCallback
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
+import com.antipov.camera2apiidp.callbacks.PreviewSurfaceTextureListener
 import com.antipov.camera2apiidp.utils.PreviewPicker
 import kotlinx.android.synthetic.main.fragment_camera.*
 import org.jetbrains.anko.sdk27.coroutines.onClick
@@ -66,8 +71,7 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         PreviewPicker(activity?.filesDir).get()?.let { imagePreview.setImageBitmap(BitmapFactory.decodeFile(it)) }
         imagePreview.onClick { startActivity(intentFor<PhotoViewerActivity>()) }
-        orientationChangeCallback = OrientationChangeCallback(activity!!)
-        orientationChangeCallback.enable()
+        orientationChangeCallback = OrientationChangeCallback(activity!!).apply { enable() }
         takePhotoBtn.onClick {
             val builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
             val rotation = activity!!.windowManager.defaultDisplay.rotation
@@ -104,7 +108,7 @@ class CameraFragment : Fragment() {
         super.onResume()
         // open camera if texture is available. If not - wait for texture.
         if (!texture.isAvailable)
-            texture.surfaceTextureListener = surfaceTextureListener
+            texture.surfaceTextureListener = PreviewSurfaceTextureListener { openCamera() }
         else
             openCamera()
     }
@@ -125,84 +129,37 @@ class CameraFragment : Fragment() {
     private var imageAvailableListener: ImageReader.OnImageAvailableListener =
         ImageReader.OnImageAvailableListener {
             val file = File(activity?.filesDir, "${System.currentTimeMillis()}.jpg")
-            Handler().post(ImageSaver(it.acquireNextImage(), file) { filePath ->
+            Handler()
+                .post(ImageSaver(it.acquireNextImage(), file) { filePath ->
                 imagePreview.setImageBitmap(BitmapFactory.decodeFile(filePath))
             })
         }
 
-    private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-
-        /**
-         * Invoked when the SurfaceTexture's buffers size changed.
-         */
-        override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture?, p1: Int, p2: Int) = Unit
-
-        /**
-         * Invoked when the specified SurfaceTexture is updated through SurfaceTexture#updateTexImage().
-         */
-        override fun onSurfaceTextureUpdated(p0: SurfaceTexture?) = Unit
-
-        /**
-         * Invoked when the specified SurfaceTexture is about to be destroyed.
-         *
-         * f returns true, no rendering should happen inside the surface texture after this method is invoked.
-         * If returns false, the client needs to call SurfaceTexture#release(). Most applications should return true.
-         */
-        override fun onSurfaceTextureDestroyed(p0: SurfaceTexture?) = true
-
-        /**
-         * Invoked when a TextureView's SurfaceTexture is ready for use.
-         */
-        override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-            openCamera()
-        }
-    }
-
-    private val cameraStateCallback = object : CameraDevice.StateCallback() {
-
-        /**
-         * The method called when a camera device has finished opening.
-         *
-         * Camera device is ready now. Can start CaptureSession at this moment.
-         */
-        override fun onOpened(camera: CameraDevice) {
+    private val cameraStateCallback = DeviceStateCallback(
+        opened = {
             // save to close it later
-            cameraDevice = camera
+            cameraDevice = it
             createImageReader()
             // create CaptureSession
             createCameraPreview()
-        }
-
-        /**
-         * The method called when a camera device is no longer available for use.
-         */
-        override fun onDisconnected(camera: CameraDevice) {
-            cameraDevice = camera
+        },
+        disconnected = {
+            cameraDevice = it
             cameraDevice.close()
             closeImageReader()
-        }
-
-        /**
-         * The method called when a camera device has encountered a serious error.
-         */
-        override fun onError(camera: CameraDevice, p1: Int) {
-            cameraDevice = camera
+        },
+        error = {
+            cameraDevice = it
             cameraDevice.close()
             closeImageReader()
-        }
-
-        /**
-         * The method called when a camera device has been closed with CameraDevice#close.
-         */
-        override fun onClosed(camera: CameraDevice) {
-            cameraDevice = camera
+        },
+        closed = {
+            cameraDevice = it
             closeImageReader()
         }
-    }
+    )
 
-    private fun closeImageReader() {
-        imageReader.setOnImageAvailableListener(null, null)
-    }
+    private fun closeImageReader() = imageReader.setOnImageAvailableListener(null, null)
 
     private fun createImageReader() {
         // configure image reader with selected size
