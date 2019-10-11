@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
@@ -22,63 +21,63 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.*
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
+import com.antipov.camera2apiidp.utils.PreviewPicker
 import kotlinx.android.synthetic.main.fragment_camera.*
+import org.jetbrains.anko.sdk27.coroutines.onClick
+import org.jetbrains.anko.support.v4.intentFor
 import java.io.File
 
 
 class CameraFragment : Fragment() {
 
+    // callback about current camera capture session
     private lateinit var cameraCaptureSession: CameraCaptureSession
-    private lateinit var captureRequestBuilder: CaptureRequest.Builder
+    // camera device
     private lateinit var cameraDevice: CameraDevice
+    // selected image size
     private lateinit var imageDimension: Size
+    // callback about device rotation
     private lateinit var orientationChangeCallback: OrientationChangeCallback
+    // image reader for capturing image
     private lateinit var imageReader: ImageReader
-
+    // camera sensor orientation
     private var sensorOrientation: Int = 0
-    private val ORIENTATIONS = SparseIntArray()
-
-    init {
-        ORIENTATIONS.append(Rotation.ROTATION_O.ordinal, 90)
-        ORIENTATIONS.append(Rotation.ROTATION_90.ordinal, 0)
-        ORIENTATIONS.append(Rotation.ROTATION_180.ordinal, 270)
-        ORIENTATIONS.append(Rotation.ROTATION_270.ordinal, 180)
+    // blink animation
+    private val captureSuccessAnimation = BlinkAnimation()
+    // selected camera id. Now it's hardcoded, but you can select any of available cameras.
+    private var cameraId: String = "0"
+    // map with rotations
+    private val orientations = SparseIntArray().apply {
+        append(Rotation.ROTATION_O.ordinal, 90)
+        append(Rotation.ROTATION_90.ordinal, 0)
+        append(Rotation.ROTATION_180.ordinal, 270)
+        append(Rotation.ROTATION_270.ordinal, 180)
     }
 
-    private val captureSuccessAnimation = BlinkAnimation()
-
-    private var cameraId: String = "0"
-
+    // just inflating view
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? = View.inflate(inflater.context, R.layout.fragment_camera, null)
 
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val folder = File(activity?.filesDir, "")
-        if (folder.exists()) {
-            folder
-                .listFiles { _, name -> name.endsWith(".jpg") }
-                ?.maxBy { it.lastModified() }
-                ?.let { imagePreview.setImageBitmap(BitmapFactory.decodeFile(it.absolutePath)) }
-        }
-        imagePreview.setOnClickListener {
-            startActivity(Intent(activity, PhotoViewerActivity::class.java))
-        }
+        PreviewPicker(activity?.filesDir).get()?.let { imagePreview.setImageBitmap(BitmapFactory.decodeFile(it)) }
+        imagePreview.onClick { startActivity(intentFor<PhotoViewerActivity>()) }
         orientationChangeCallback = OrientationChangeCallback(activity!!)
         orientationChangeCallback.enable()
-        takePhotoBtn.setOnClickListener {
+        takePhotoBtn.onClick {
             val builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
             val rotation = activity!!.windowManager.defaultDisplay.rotation
             // Sensor orientation is 90 for most devices, or 270 for some devices (eg. Nexus 5X)
             // We have to take that into account and rotate JPEG properly.
-            // For devices with orientation of 90, we return our mapping from ORIENTATIONS.
+            // For devices with orientation of 90, we return our mapping from orientations.
             // For devices with orientation of 270, we need to rotate the JPEG 180 degrees.
             builder.set(
                 CaptureRequest.JPEG_ORIENTATION,
-                (ORIENTATIONS.get(rotation) + sensorOrientation + 270) % 360
+                (orientations.get(rotation) + sensorOrientation + 270) % 360
             )
 
             builder.addTarget(imageReader.surface)
@@ -103,7 +102,7 @@ class CameraFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // set listener about surface availability
+        // open camera if texture is available. If not - wait for texture.
         if (!texture.isAvailable)
             texture.surfaceTextureListener = surfaceTextureListener
         else
@@ -114,6 +113,7 @@ class CameraFragment : Fragment() {
         super.onPause()
         // remove listener listener about surface availability
         texture.surfaceTextureListener = null
+        // close camera device
         cameraDevice.close()
     }
 
@@ -223,32 +223,33 @@ class CameraFragment : Fragment() {
         // create preview surface
         val surface = Surface(surfaceTexture)
         // make request for preview
-        captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        val captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         // add preview surface as target
         captureRequestBuilder.addTarget(surface)
         cameraDevice.createCaptureSession(
-            listOf(surface, imageReader.surface),
+            listOf(surface, imageReader.surface), // surfaces to configure
             object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
                     // When the session is ready, we start displaying the preview.
                     this@CameraFragment.cameraCaptureSession = cameraCaptureSession
                     // and set this request repeatable
-                    updatePreview()
+                    captureRequestBuilder.set(
+                        CaptureRequest.CONTROL_MODE,
+                        CameraMetadata.CONTROL_MODE_AUTO
+                    )
+                    //With this method, the camera device will continually capture images, cycling through the
+                    // settings in the provided list of CaptureRequests, at the maximum rate possible.
+                    cameraCaptureSession.setRepeatingRequest(
+                        captureRequestBuilder.build(),
+                        null,
+                        null
+                    )
                 }
 
-                override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {
-
-                }
+                override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) = Unit
             },
             null
         )
-    }
-
-    private fun updatePreview() {
-        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
-        //With this method, the camera device will continually capture images, cycling through the
-        // settings in the provided list of CaptureRequests, at the maximum rate possible.
-        cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null)
     }
 
     @SuppressLint("MissingPermission")
