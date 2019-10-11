@@ -1,4 +1,4 @@
-package com.antipov.camera2apiidp
+package com.antipov.camera2apiidp.utils
 
 import android.media.Image
 import android.util.Log

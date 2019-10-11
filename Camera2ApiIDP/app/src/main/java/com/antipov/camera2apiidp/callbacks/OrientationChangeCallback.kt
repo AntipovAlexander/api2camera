@@ -6,7 +6,7 @@ import android.view.OrientationEventListener
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.antipov.camera2apiidp.R
-import com.antipov.camera2apiidp.Rotation
+import com.antipov.camera2apiidp.utils.Rotation
 
 class OrientationChangeCallback(private val context: Context) : OrientationEventListener(context) {
 

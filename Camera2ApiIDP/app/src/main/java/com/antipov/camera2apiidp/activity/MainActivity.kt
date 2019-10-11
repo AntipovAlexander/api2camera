@@ -1,4 +1,4 @@
-package com.antipov.camera2apiidp
+package com.antipov.camera2apiidp.activity
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.antipov.camera2apiidp.R
 import com.antipov.camera2apiidp.fragments.CameraFragment
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {

@@ -1,4 +1,4 @@
-package com.antipov.camera2apiidp
+package com.antipov.camera2apiidp.activity
 
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -8,6 +8,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager.widget.PagerAdapter
+import com.antipov.camera2apiidp.R
 import kotlinx.android.synthetic.main.activity_photo_viewer.*
 import java.io.File
 
@@ -28,7 +29,8 @@ class PhotoViewerActivity : AppCompatActivity() {
                         ?.reversed() ?: arrayListOf()
                 )
         }
-        viewpager.adapter = PhotoViewerAdapter(photos)
+        viewpager.adapter =
+            PhotoViewerAdapter(photos)
     }
 
     private class PhotoViewerAdapter(private val data: ArrayList<String>) : PagerAdapter() {

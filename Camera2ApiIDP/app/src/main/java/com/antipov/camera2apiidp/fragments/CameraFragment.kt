@@ -23,10 +23,14 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.antipov.camera2apiidp.*
+import com.antipov.camera2apiidp.activity.PhotoViewerActivity
 import com.antipov.camera2apiidp.callbacks.DeviceStateCallback
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
 import com.antipov.camera2apiidp.callbacks.PreviewSurfaceTextureListener
+import com.antipov.camera2apiidp.utils.ImageSaver
 import com.antipov.camera2apiidp.utils.PreviewPicker
+import com.antipov.camera2apiidp.utils.Rotation
+import com.antipov.camera2apiidp.view.BlinkAnimation
 import kotlinx.android.synthetic.main.fragment_camera.*
 import org.jetbrains.anko.sdk27.coroutines.onClick
 import org.jetbrains.anko.support.v4.intentFor
@@ -130,9 +134,13 @@ class CameraFragment : Fragment() {
         ImageReader.OnImageAvailableListener {
             val file = File(activity?.filesDir, "${System.currentTimeMillis()}.jpg")
             Handler()
-                .post(ImageSaver(it.acquireNextImage(), file) { filePath ->
-                imagePreview.setImageBitmap(BitmapFactory.decodeFile(filePath))
-            })
+                .post(
+                    ImageSaver(
+                        it.acquireNextImage(),
+                        file
+                    ) { filePath ->
+                        imagePreview.setImageBitmap(BitmapFactory.decodeFile(filePath))
+                    })
         }
 
     private val cameraStateCallback = DeviceStateCallback(
