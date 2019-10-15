@@ -22,7 +22,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.antipov.camera2apiidp.*
+import com.antipov.camera2apiidp.R
 import com.antipov.camera2apiidp.activity.PhotoViewerActivity
 import com.antipov.camera2apiidp.callbacks.DeviceStateCallback
 import com.antipov.camera2apiidp.callbacks.OrientationChangeCallback
@@ -121,6 +121,8 @@ class CameraFragment : Fragment() {
         super.onPause()
         // remove listener listener about surface availability
         texture.surfaceTextureListener = null
+        // cancel repeating request
+        cameraCaptureSession.stopRepeating()
         // close camera device
         cameraDevice.close()
     }
