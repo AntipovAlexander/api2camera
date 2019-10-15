@@ -13,6 +13,7 @@ import android.hardware.camera2.*
 import android.media.ImageReader
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
 import android.util.SparseIntArray
@@ -55,6 +56,10 @@ class CameraFragment : Fragment() {
     private val captureSuccessAnimation = BlinkAnimation()
     // selected camera id. Now it's hardcoded, but you can select any of available cameras.
     private var cameraId: String = "0"
+    // handler thread
+    private lateinit var backgroundThread: HandlerThread
+    // background handler
+    private lateinit var backgroundHandler: Handler
     // map with rotations
     private val orientations = SparseIntArray().apply {
         append(Rotation.ROTATION_O.ordinal, 90)
@@ -110,6 +115,7 @@ class CameraFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        startBackgroundThread()
         // open camera if texture is available. If not - wait for texture.
         if (!texture.isAvailable)
             texture.surfaceTextureListener = PreviewSurfaceTextureListener { openCamera() }
@@ -125,6 +131,8 @@ class CameraFragment : Fragment() {
         cameraCaptureSession.stopRepeating()
         // close camera device
         cameraDevice.close()
+        // stop background thread
+        stopBackgroundThread()
     }
 
     override fun onDestroyView() {
@@ -132,17 +140,32 @@ class CameraFragment : Fragment() {
         orientationChangeCallback.disable()
     }
 
+    private fun startBackgroundThread() {
+        backgroundThread = HandlerThread("Camera-$cameraId").apply {
+            start()
+            backgroundHandler = Handler(looper)
+        }
+    }
+
+    private fun stopBackgroundThread() {
+        try {
+            backgroundThread.quitSafely()
+            backgroundThread.join()
+            backgroundHandler.removeCallbacksAndMessages(null)
+        } catch (e: InterruptedException) {
+            Log.e(TAG, e.toString())
+        }
+
+    }
+
     private var imageAvailableListener: ImageReader.OnImageAvailableListener =
-        ImageReader.OnImageAvailableListener {
+        ImageReader.OnImageAvailableListener { reader ->
             val file = File(activity?.filesDir, "${System.currentTimeMillis()}.jpg")
-            Handler()
-                .post(
-                    ImageSaver(
-                        it.acquireNextImage(),
-                        file
-                    ) { filePath ->
+            backgroundHandler.post(
+                ImageSaver(reader.acquireNextImage(), file) { filePath ->
                         imagePreview.setImageBitmap(BitmapFactory.decodeFile(filePath))
-                    })
+                }
+            )
         }
 
     private val cameraStateCallback = DeviceStateCallback(
