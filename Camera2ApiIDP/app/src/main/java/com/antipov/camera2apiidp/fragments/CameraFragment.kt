@@ -108,7 +108,7 @@ class CameraFragment : Fragment() {
                         }
                     }
                 },
-                null
+                backgroundHandler
             )
         }
     }
@@ -192,7 +192,7 @@ class CameraFragment : Fragment() {
         }
     )
 
-    private fun closeImageReader() = imageReader.setOnImageAvailableListener(null, null)
+    private fun closeImageReader() = imageReader.setOnImageAvailableListener(null, backgroundHandler)
 
     private fun createImageReader() {
         // configure image reader with selected size
@@ -202,7 +202,7 @@ class CameraFragment : Fragment() {
             ImageFormat.JPEG,
             1
         )
-        imageReader.setOnImageAvailableListener(imageAvailableListener, null)
+        imageReader.setOnImageAvailableListener(imageAvailableListener, backgroundHandler)
     }
 
     private fun createCameraPreview() {
@@ -232,13 +232,13 @@ class CameraFragment : Fragment() {
                     cameraCaptureSession.setRepeatingRequest(
                         captureRequestBuilder.build(),
                         null,
-                        null
+                        backgroundHandler
                     )
                 }
 
                 override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) = Unit
             },
-            null
+            backgroundHandler
         )
     }
 
@@ -267,7 +267,7 @@ class CameraFragment : Fragment() {
             }
 
             // open camera with state callback
-            manager.openCamera(cameraId, cameraStateCallback, null)
+            manager.openCamera(cameraId, cameraStateCallback, backgroundHandler)
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         } catch (e: InterruptedException) {
